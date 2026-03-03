@@ -24,11 +24,17 @@ from src.metrics_engine import compute_metrics
 from src.health_score import calculate_health_score
 from src.shock_models import ALL_SHOCKS
 from src.simulation_engine import run_all_simulations
-from src.llm_prompts import generate_mock_risks, generate_mock_roadmap
 from src.synthetic_data import generate_synthetic_msme_data
 from src.scheme_recommender import recommend_schemes
 from src.cashflow_forecast import forecast_cashflow
 from src.historical_backtest import run_historical_backtest
+from src.llm_integration import (
+    generate_llm_risks,
+    generate_llm_roadmap,
+    generate_executive_summary,
+    answer_chat_question,
+    is_llm_available,
+)
 
 # ---------------------------------------------------------------------------
 # App
@@ -136,8 +142,15 @@ class FullAnalysisResponse(BaseModel):
     schemes: list[dict[str, Any]]
     forecast: dict[str, Any]
     backtest: list[dict[str, Any]]
+    ai_summary: str
+    llm_provider: str
     elapsed_seconds: float
     data_preview: list[dict[str, Any]]
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=500)
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -145,14 +158,16 @@ class FullAnalysisResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _run_pipeline(df, n_simulations: int = 1000, noise_std: float = 0.05) -> dict:
-    """Execute the full analysis pipeline."""
+    """Execute the full analysis pipeline with LLM-powered insights."""
     start = time.time()
 
     metrics = compute_metrics(df)
     health = calculate_health_score(metrics)
     sims = run_all_simulations(metrics, n_simulations=n_simulations, noise_std=noise_std, seed=42)
-    risks = generate_mock_risks(metrics, sims)
-    roadmap = generate_mock_roadmap(metrics, sims, risks)
+
+    # LLM-powered risk & roadmap (falls back to mock if no API key)
+    risks = generate_llm_risks(metrics, health, sims)
+    roadmap = generate_llm_roadmap(metrics, health, sims, risks)
 
     # New features
     schemes = recommend_schemes(metrics, health, sims)
@@ -162,15 +177,18 @@ def _run_pipeline(df, n_simulations: int = 1000, noise_std: float = 0.05) -> dic
     fc = forecast_cashflow(metrics_for_forecast, months_ahead=6, n_simulations=n_simulations)
     backtest = run_historical_backtest(metrics)
 
-    elapsed = time.time() - start
-
-    # Build serializable metrics (exclude raw_df)
+    # AI Executive Summary
     metrics_clean = {k: v for k, v in metrics.items() if k != "raw_df"}
     metrics_clean["months"] = enriched["month"].tolist()
     metrics_clean["revenues"] = enriched["revenue"].tolist()
+    ai_summary = generate_executive_summary(metrics_clean, health, sims, fc, backtest)
+
+    elapsed = time.time() - start
 
     # Data preview (first 6 rows)
     preview = df.head(6).to_dict(orient="records")
+
+    llm_active = "openai" if os.environ.get("OPENAI_API_KEY") else "gemini" if os.environ.get("GOOGLE_API_KEY") else "mock"
 
     return {
         "metrics": metrics_clean,
@@ -181,6 +199,8 @@ def _run_pipeline(df, n_simulations: int = 1000, noise_std: float = 0.05) -> dic
         "schemes": schemes,
         "forecast": fc,
         "backtest": backtest,
+        "ai_summary": ai_summary,
+        "llm_provider": llm_active,
         "elapsed_seconds": round(elapsed, 3),
         "data_preview": preview,
     }
@@ -244,7 +264,12 @@ def analyze_synthetic(req: SyntheticRequest):
 @app.get("/api/health")
 def health_check():
     """API health check."""
-    return {"status": "ok", "version": "3.0.0"}
+    return {
+        "status": "ok",
+        "version": "3.1.0",
+        "llm_available": is_llm_available(),
+        "llm_provider": "openai" if os.environ.get("OPENAI_API_KEY") else "gemini" if os.environ.get("GOOGLE_API_KEY") else None,
+    }
 
 
 @app.get("/api/events")
@@ -269,3 +294,36 @@ def list_all_schemes():
     """List all available government schemes."""
     from src.scheme_recommender import SCHEMES
     return SCHEMES
+
+
+# ── In-memory store for last analysis (for chat context) ──
+_last_analysis: dict | None = None
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    """Chat with your financial data using AI."""
+    global _last_analysis
+
+    # Use provided context or fallback to last analysis
+    ctx = req.context if req.context else _last_analysis
+    if not ctx:
+        return {
+            "answer": "Please run a financial analysis first before chatting. I need your data to provide insights.",
+            "llm_provider": "none",
+        }
+
+    answer = answer_chat_question(
+        question=req.question,
+        metrics=ctx.get("metrics", {}),
+        health=ctx.get("health", {}),
+        simulation_results=ctx.get("simulations", []),
+        forecast=ctx.get("forecast", {}),
+        backtest=ctx.get("backtest", []),
+        schemes=ctx.get("schemes", []),
+    )
+
+    return {
+        "answer": answer,
+        "llm_provider": "openai" if os.environ.get("OPENAI_API_KEY") else "gemini" if os.environ.get("GOOGLE_API_KEY") else "mock",
+    }

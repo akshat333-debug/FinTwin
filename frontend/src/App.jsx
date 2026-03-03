@@ -10,7 +10,8 @@ import { RiskCards, RoadmapCards } from './components/InsightCards';
 import SchemeCards from './components/SchemeCards';
 import ForecastChart from './components/ForecastChart';
 import BacktestTimeline from './components/BacktestTimeline';
-import { Zap, FileText, RefreshCw, Download } from 'lucide-react';
+import ChatPanel from './components/ChatPanel';
+import { Zap, FileText, RefreshCw, Download, Sparkles } from 'lucide-react';
 
 function AppContent() {
   const [page, setPage] = useState('dashboard');
@@ -143,6 +144,22 @@ function AppContent() {
                     <div style={{ marginBottom: '1.25rem' }}>
                       <StatCards metrics={result.metrics} health={result.health} />
                     </div>
+
+                    {/* AI Executive Summary */}
+                    {result.ai_summary && (
+                      <div className="ai-summary" style={{ marginBottom: '1.25rem' }}>
+                        <div className="ai-summary-label">
+                          <Sparkles size={12} />
+                          AI Executive Summary
+                          {result.llm_provider && result.llm_provider !== 'mock' && (
+                            <span className="badge badge-primary" style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>
+                              {result.llm_provider === 'openai' ? 'GPT-4o' : 'Gemini 2.0'}
+                            </span>
+                          )}
+                        </div>
+                        <div>{result.ai_summary}</div>
+                      </div>
+                    )}
 
                     {/* Health + Profit */}
                     <div className="grid-2-wide" style={{ marginBottom: '1.25rem' }}>
@@ -366,6 +383,9 @@ function AppContent() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Chat FAB + Panel */}
+      <ChatPanel result={result} />
     </div>
   );
 }

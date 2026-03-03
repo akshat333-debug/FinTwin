@@ -57,3 +57,15 @@ export function formatINR(value) {
 export function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
+
+export async function chatWithData(question, context = {}) {
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, context }),
+  });
+  if (!res.ok) {
+    throw new Error('Chat request failed');
+  }
+  return res.json();
+}
