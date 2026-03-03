@@ -26,6 +26,9 @@ from src.shock_models import ALL_SHOCKS
 from src.simulation_engine import run_all_simulations
 from src.llm_prompts import generate_mock_risks, generate_mock_roadmap
 from src.synthetic_data import generate_synthetic_msme_data
+from src.scheme_recommender import recommend_schemes
+from src.cashflow_forecast import forecast_cashflow
+from src.historical_backtest import run_historical_backtest
 
 # ---------------------------------------------------------------------------
 # App
@@ -130,6 +133,9 @@ class FullAnalysisResponse(BaseModel):
     simulations: list[SimulationResult]
     risks: list[RiskItem]
     roadmap: list[RoadmapAction]
+    schemes: list[dict[str, Any]]
+    forecast: dict[str, Any]
+    backtest: list[dict[str, Any]]
     elapsed_seconds: float
     data_preview: list[dict[str, Any]]
 
@@ -148,10 +154,17 @@ def _run_pipeline(df, n_simulations: int = 1000, noise_std: float = 0.05) -> dic
     risks = generate_mock_risks(metrics, sims)
     roadmap = generate_mock_roadmap(metrics, sims, risks)
 
+    # New features
+    schemes = recommend_schemes(metrics, health, sims)
+    metrics_for_forecast = {k: v for k, v in metrics.items() if k != "raw_df"}
+    enriched = metrics["raw_df"]
+    metrics_for_forecast["months"] = enriched["month"].tolist()
+    fc = forecast_cashflow(metrics_for_forecast, months_ahead=6, n_simulations=n_simulations)
+    backtest = run_historical_backtest(metrics)
+
     elapsed = time.time() - start
 
     # Build serializable metrics (exclude raw_df)
-    enriched = metrics["raw_df"]
     metrics_clean = {k: v for k, v in metrics.items() if k != "raw_df"}
     metrics_clean["months"] = enriched["month"].tolist()
     metrics_clean["revenues"] = enriched["revenue"].tolist()
@@ -165,6 +178,9 @@ def _run_pipeline(df, n_simulations: int = 1000, noise_std: float = 0.05) -> dic
         "simulations": sims,
         "risks": risks,
         "roadmap": roadmap,
+        "schemes": schemes,
+        "forecast": fc,
+        "backtest": backtest,
         "elapsed_seconds": round(elapsed, 3),
         "data_preview": preview,
     }
@@ -228,4 +244,28 @@ def analyze_synthetic(req: SyntheticRequest):
 @app.get("/api/health")
 def health_check():
     """API health check."""
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": "3.0.0"}
+
+
+@app.get("/api/events")
+def list_events():
+    """List available historical events for backtesting."""
+    from src.historical_backtest import HISTORICAL_EVENTS
+    return [
+        {
+            "id": e["id"],
+            "name": e["name"],
+            "year": e["year"],
+            "period": e["period"],
+            "severity": e["severity"],
+            "icon": e["icon"],
+        }
+        for e in HISTORICAL_EVENTS
+    ]
+
+
+@app.get("/api/schemes/all")
+def list_all_schemes():
+    """List all available government schemes."""
+    from src.scheme_recommender import SCHEMES
+    return SCHEMES

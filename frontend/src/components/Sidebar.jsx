@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Upload, Zap, Settings, FileText, Database, Shield } from 'lucide-react';
+import { Activity, BarChart3, Upload, Zap, FileText, Database, Shield, Landmark, TrendingUp, History } from 'lucide-react';
 
 const NAV_SECTIONS = [
     {
@@ -12,8 +12,11 @@ const NAV_SECTIONS = [
     {
         label: 'Analysis',
         items: [
-            { id: 'shocks', label: 'Shock Models', icon: Zap },
+            { id: 'forecast', label: 'Cash Flow Forecast', icon: TrendingUp },
+            { id: 'backtest', label: 'Historical Backtest', icon: History },
+            { id: 'schemes', label: 'Govt Schemes', icon: Landmark },
             { id: 'risks', label: 'Risk Analysis', icon: Shield },
+            { id: 'shocks', label: 'Shock Models', icon: Zap },
         ],
     },
     {
@@ -63,7 +66,7 @@ export default function Sidebar({ activePage, onNavigate }) {
             {/* Footer */}
             <div className="sidebar-footer">
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-sidebar)', padding: '0.25rem 0.5rem' }}>
-                    v2.0 — 79 Tests Passing
+                    v3.0 — Hackathon Edition
                 </div>
             </div>
         </aside>
