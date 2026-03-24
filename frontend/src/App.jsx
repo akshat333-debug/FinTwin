@@ -15,15 +15,24 @@ import ChatPanel from './components/ChatPanel';
 import CustomShockBuilder from './components/CustomShockBuilder';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Zap, FileText, RefreshCw, Download, Sparkles } from 'lucide-react';
+import { getShocks } from './services/api';
 
 function AppContent() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [shocksList, setShocksList] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
   // Derive active page from current route path
   const activePage = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1);
+
+  // Fetch shocks on mount
+  import('react').then((React) => {
+    React.useEffect(() => {
+      getShocks().then(setShocksList).catch(console.error);
+    }, []);
+  });
 
   const handleAnalysisComplete = (data) => {
     setResult(data);
@@ -309,32 +318,34 @@ function AppContent() {
                       <span className="card-title"><Zap size={16} className="icon" /> India-Specific Shock Models</span>
                     </div>
                     <div className="card-body">
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                            <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Shock</th>
-                            <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Impact</th>
-                            <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Duration</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[
-                            ['Recession', '−20% revenue', '12 months', 'danger'],
-                            ['GST Hike', '+5% expenses', '12 months', 'warning'],
-                            ['Fuel/Logistics Spike', '+10% expenses', '12 months', 'warning'],
-                            ['Pandemic Lockdown', '−35% revenue', '3 months', 'danger'],
-                            ['Credit Freeze', '−40% cash, −15% revenue', '3 months', 'danger'],
-                            ['Demonetization', '−50% revenue', '2 months', 'danger'],
-                            ['Inflation Shock', '+15% expenses', '12 months', 'warning'],
-                          ].map(([name, impact, duration, sev]) => (
-                            <tr key={name} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                              <td style={{ padding: '0.7rem', fontWeight: 500 }}>{name}</td>
-                              <td style={{ padding: '0.7rem' }}><span className={`badge badge-${sev}`}>{impact}</span></td>
-                              <td style={{ padding: '0.7rem', color: 'var(--text-secondary)' }}>{duration}</td>
+                      {shocksList.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                          <span className="spinner-sm" style={{ borderColor: 'var(--text-muted)', borderTopColor: 'var(--primary)' }} />
+                        </div>
+                      ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                              <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Shock</th>
+                              <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Description</th>
+                              <th style={{ textAlign: 'left', padding: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Severity</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {shocksList.map((shock) => (
+                              <tr key={shock.key} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                <td style={{ padding: '0.7rem', fontWeight: 500 }}>{shock.name}</td>
+                                <td style={{ padding: '0.7rem', color: 'var(--text-secondary)' }}>{shock.description}</td>
+                                <td style={{ padding: '0.7rem' }}>
+                                  <span className={`badge badge-${shock.severity === 'Very High' || shock.severity === 'High' ? 'danger' : 'warning'}`}>
+                                    {shock.severity}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </div>
                 </PageTransition>

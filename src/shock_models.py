@@ -53,107 +53,43 @@ def _apply_expense_shock(metrics: dict, factor: float, expense_type: str = "all"
     return m
 
 
-# ── SHOCK 1: Recession ────────────────────────────────────────────────
-def shock_recession(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Recession: -20% revenue across all months."""
-    return _apply_revenue_shock(metrics, factor=-0.20)
-
-
-# ── SHOCK 2: GST Hike ─────────────────────────────────────────────────
-def shock_gst_hike(metrics: dict[str, Any]) -> dict[str, Any]:
-    """GST hike: +5% increase in all expenses."""
-    return _apply_expense_shock(metrics, factor=0.05)
-
-
-# ── SHOCK 3: Fuel Spike ───────────────────────────────────────────────
-def shock_fuel_spike(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Fuel/logistics spike: +10% increase in variable costs (proxy: total expenses)."""
-    return _apply_expense_shock(metrics, factor=0.10)
-
-
-# ── SHOCK 4: Pandemic ─────────────────────────────────────────────────
-def shock_pandemic(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Pandemic: -35% revenue for first 3 months."""
-    return _apply_revenue_shock(metrics, factor=-0.35, months=3)
-
-
-# ── SHOCK 5: Credit Freeze ────────────────────────────────────────────
-def shock_credit_freeze(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Credit freeze: cash reserve drops 40% + 15% revenue loss for 3 months (delayed receivables)."""
-    m = copy.deepcopy(metrics)
-    m["latest_cash_reserve"] = round(m["latest_cash_reserve"] * 0.60, 2)
-    m["avg_cash_reserve"] = round(m["avg_cash_reserve"] * 0.60, 2)
-    # Delayed receivables also reduce effective revenue for 3 months
-    profits = list(m["monthly_profit"])
-    expenses = list(m["total_expenses"])
-    n = min(3, len(profits))
-    for i in range(n):
-        revenue_i = profits[i] + expenses[i]
-        revenue_drop = revenue_i * 0.15
-        profits[i] -= revenue_drop
-    m["monthly_profit"] = profits
-    m["avg_monthly_profit"] = round(sum(profits) / len(profits), 2)
-    return m
-
-
-# ── SHOCK 6: Demonetization ───────────────────────────────────────────
-def shock_demonetization(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Demonetization: -50% revenue for 2 months, then recovery."""
-    return _apply_revenue_shock(metrics, factor=-0.50, months=2)
-
-
-# ── SHOCK 7: Inflation Shock ──────────────────────────────────────────
-def shock_inflation(metrics: dict[str, Any]) -> dict[str, Any]:
-    """Sustained inflation: +15% increase in all expenses."""
-    return _apply_expense_shock(metrics, factor=0.15)
-
-
 # ── Registry ──────────────────────────────────────────────────────────
 
-ALL_SHOCKS: dict[str, dict[str, Any]] = {
-    "recession": {
-        "name": "Recession",
-        "description": "Revenue drops 20% across all months",
-        "severity": "High",
-        "function": shock_recession,
-    },
-    "gst_hike": {
-        "name": "GST Hike",
-        "description": "5% increase in all expenses due to tax policy change",
-        "severity": "Medium",
-        "function": shock_gst_hike,
-    },
-    "fuel_spike": {
-        "name": "Fuel/Logistics Spike",
-        "description": "10% increase in operating costs due to fuel price surge",
-        "severity": "Medium",
-        "function": shock_fuel_spike,
-    },
-    "pandemic": {
-        "name": "Pandemic Lockdown",
-        "description": "35% revenue drop for 3 months due to lockdown",
-        "severity": "Very High",
-        "function": shock_pandemic,
-    },
-    "credit_freeze": {
-        "name": "Credit Freeze",
-        "description": "Cash reserves drop 40% due to delayed receivables",
-        "severity": "High",
-        "function": shock_credit_freeze,
-    },
-    "demonetization": {
-        "name": "Demonetization",
-        "description": "50% revenue drop for 2 months, cash-dependent disruption",
-        "severity": "Very High",
-        "function": shock_demonetization,
-    },
-    "inflation": {
-        "name": "Inflation Shock",
-        "description": "15% sustained increase in all operating expenses",
-        "severity": "High",
-        "function": shock_inflation,
-    },
-}
+import json
+import os
+
+def load_shocks() -> dict[str, dict[str, Any]]:
+    """Load shock models from JSON configuration."""
+    filepath = os.path.join(os.path.dirname(__file__), "..", "data", "shocks.json")
+    with open(filepath, "r", encoding="utf-8") as f:
+        shocks_list = json.load(f)
+
+    registry = {}
+    for shock in shocks_list:
+        # Create a closure to capture the specific shock parameters
+        def make_shock_func(config=shock):
+            def custom_shock_fn(m: dict) -> dict:
+                result = copy.deepcopy(m)
+                if config.get("revenue_impact", 0.0) != 0.0:
+                    result = _apply_revenue_shock(result, factor=config["revenue_impact"], months=config.get("duration_months"))
+                if config.get("expense_impact", 0.0) != 0.0:
+                    result = _apply_expense_shock(result, factor=config["expense_impact"])
+                if config.get("cash_reserve_impact", 0.0) != 0.0:
+                    result["latest_cash_reserve"] = round(result["latest_cash_reserve"] * (1 + config["cash_reserve_impact"]), 2)
+                    result["avg_cash_reserve"] = round(result["avg_cash_reserve"] * (1 + config["cash_reserve_impact"]), 2)
+                return result
+            return custom_shock_fn
+
+        registry[shock["key"]] = {
+            "name": shock["name"],
+            "description": shock["description"],
+            "severity": shock["severity"],
+            "function": make_shock_func(),
+        }
+    return registry
+
+
+ALL_SHOCKS: dict[str, dict[str, Any]] = load_shocks()
 
 
 def get_all_shock_names() -> list[str]:

@@ -1,0 +1,74 @@
+[
+    {
+        "id": "cgtmse",
+        "name": "CGTMSE Scheme",
+        "category": "Credit Guarantee",
+        "description": "Collateral-free credit for micro and small enterprises up to \u20b95 Crore. Provides guarantee cover up to 85% for loans.",
+        "eligibility": {
+            "min_revenue": 0,
+            "max_revenue": 50000000,
+            "business_types": ["manufacturing", "services", "stable", "growing", "struggling", "seasonal"]
+        },
+        "url": "https://www.cgtmse.in/"
+    },
+    {
+        "id": " मुद्रा ",
+        "name": "PMMY (MUDRA Yojana)",
+        "category": "Micro Credit",
+        "description": "Loans up to \u20b910 Lakhs for non-corporate, non-farm small/micro enterprises. Categories: Shishu (up to 50K), Kishore (up to 5L), Tarun (up to 10L).",
+        "eligibility": {
+            "min_revenue": 0,
+            "max_revenue": 10000000,
+            "business_types": ["manufacturing", "trading", "services", "struggling"]
+        },
+        "url": "https://www.mudra.org.in/"
+    },
+    {
+        "id": "stand_up_india",
+        "name": "Stand-Up India",
+        "category": "Credit",
+        "description": "Loans between \u20b910 Lakh and \u20b91 Crore for SC/ST or Women entrepreneurs setting up a greenfield enterprise.",
+        "eligibility": {
+            "min_revenue": 0,
+            "max_revenue": 100000000,
+            "business_types": ["manufacturing", "services", "trading"]
+        },
+        "url": "https://www.standupmitra.in/"
+    },
+    {
+        "id": "zhed",
+        "name": "ZED Certification Scheme",
+        "category": "Subsidies",
+        "description": "Financial support for MSMEs in ZED certification, tech upgradation, and quality improvement to enhance global competitiveness.",
+        "eligibility": {
+            "min_revenue": 5000000,
+            "max_revenue": 250000000,
+            "business_types": ["manufacturing", "stable", "growing"]
+        },
+        "url": "https://zed.msme.gov.in/"
+    },
+    {
+        "id": "clcss",
+        "name": "CLCSS Scheme",
+        "category": "Tech Upgradation",
+        "description": "15% capital subsidy for induction of well-established and improved technology in specified sub-sectors.",
+        "eligibility": {
+            "min_revenue": 1000000,
+            "max_revenue": 100000000,
+            "business_types": ["manufacturing"]
+        },
+        "url": "https://msme.gov.in/credit-linked-capital-subsidy-scheme"
+    },
+    {
+        "id": "treeds",
+        "name": "TReDS Platform",
+        "category": "Working Capital",
+        "description": "Electronic platform for facilitating the financing / discounting of trade receivables of MSMEs from corporate and other buyers.",
+        "eligibility": {
+            "min_revenue": 2000000,
+            "max_revenue": 250000000,
+            "business_types": ["manufacturing", "services", "stable", "growing", "struggling"]
+        },
+        "url": "https://www.rbi.org.in/"
+    }
+]
