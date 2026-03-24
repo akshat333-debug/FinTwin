@@ -86,7 +86,14 @@ def compute_metrics(df: pd.DataFrame) -> dict[str, Any]:
     enriched_df["monthly_profit"] = monthly_profit
     enriched_df["profit_margin"] = profit_margin
 
-    return {
+    # ---- Granular expense breakdown (optional columns) ----
+    granular_cols = getattr(df, "attrs", {}).get("granular_expenses", [])
+    expense_breakdown: dict[str, float] = {}
+    for col in granular_cols:
+        if col in df.columns:
+            expense_breakdown[col] = round(float(df[col].mean()), 2)
+
+    result = {
         # Per-month series
         "monthly_profit": monthly_profit.tolist(),
         "total_expenses": total_expenses.tolist(),
@@ -106,3 +113,9 @@ def compute_metrics(df: pd.DataFrame) -> dict[str, Any]:
         # Enriched data
         "raw_df": enriched_df,
     }
+
+    # Attach granular breakdown if present
+    if expense_breakdown:
+        result["expense_breakdown"] = expense_breakdown
+
+    return result

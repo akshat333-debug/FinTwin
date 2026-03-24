@@ -58,14 +58,26 @@ export function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export async function chatWithData(question, context = {}) {
+export async function chatWithData(question, context = {}, activePage = 'dashboard') {
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, context }),
+    body: JSON.stringify({ question, context, active_page: activePage }),
   });
   if (!res.ok) {
     throw new Error('Chat request failed');
+  }
+  return res.json();
+}
+
+export async function runCustomShock(params) {
+  const res = await fetch(`${API_BASE}/api/custom-shock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    throw new Error('Custom shock simulation failed');
   }
   return res.json();
 }

@@ -30,6 +30,14 @@ REQUIRED_COLUMNS: list[str] = [
     "cash_reserve",
 ]
 
+# Optional granular expense categories (backward compatible)
+OPTIONAL_EXPENSE_COLUMNS: list[str] = [
+    "payroll",
+    "marketing",
+    "software",
+    "logistics",
+]
+
 NUMERIC_COLUMNS: list[str] = [
     "revenue",
     "fixed_costs",
@@ -137,22 +145,28 @@ def parse_csv(source: Union[str, io.IOBase, "streamlit.runtime.uploaded_file_man
         result.add_error(f"Need at least {MIN_ROWS} rows of data, got {len(df)}.")
 
     # ------------------------------------------------------------------
-    # 5. Coerce numeric columns
+    # 5. Coerce numeric columns (required + optional)
     # ------------------------------------------------------------------
-    for col in NUMERIC_COLUMNS:
+    present_optional = [col for col in OPTIONAL_EXPENSE_COLUMNS if col in df.columns]
+    all_numeric = NUMERIC_COLUMNS + present_optional
+
+    for col in all_numeric:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # ------------------------------------------------------------------
     # 6. Handle missing values — fill with 0 and warn
     # ------------------------------------------------------------------
-    null_counts = df[NUMERIC_COLUMNS].isnull().sum()
+    null_counts = df[all_numeric].isnull().sum()
     cols_with_nulls = null_counts[null_counts > 0]
     if not cols_with_nulls.empty:
         result.add_warning(
             f"Null/unparseable values found and filled with 0: "
             f"{cols_with_nulls.to_dict()}"
         )
-        df[NUMERIC_COLUMNS] = df[NUMERIC_COLUMNS].fillna(0.0)
+        df[all_numeric] = df[all_numeric].fillna(0.0)
+
+    # Tag which granular expense columns are present
+    df.attrs["granular_expenses"] = present_optional
 
     # ------------------------------------------------------------------
     # 7. Validate month column is parseable

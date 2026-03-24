@@ -214,8 +214,16 @@ def answer_chat_question(
     forecast: dict[str, Any],
     backtest: list[dict[str, Any]],
     schemes: list[dict[str, Any]],
+    active_page: str = "dashboard",
 ) -> str:
-    """Answer a user's question about their financial data using LLM."""
+    """Answer a user's question about their financial data using LLM.
+
+    Parameters
+    ----------
+    active_page : str
+        The frontend page the user is currently viewing, used to provide
+        context-aware responses and suggestions.
+    """
 
     # Build comprehensive context
     sim_text = "\n".join(
@@ -255,12 +263,26 @@ def answer_chat_question(
 ## Recommended Schemes
 {scheme_text}"""
 
-    system = """You are FinTwin AI, an expert Indian MSME financial advisor chatbot.
+    # Context-aware page hints
+    page_hints = {
+        "dashboard": "The user is viewing the main dashboard overview.",
+        "forecast": "The user is viewing the 6-month cash flow forecast. Tailor your answer to forecasting and future projections.",
+        "backtest": "The user is viewing historical backtesting results. Reference how the business would perform during past crises.",
+        "schemes": "The user is viewing government scheme recommendations. Focus on scheme eligibility and benefits.",
+        "risks": "The user is viewing risk analysis and roadmap. Focus on risks, mitigations, and action items.",
+        "shocks": "The user is viewing shock model definitions. Explain shock impacts and how they are modeled.",
+        "upload": "The user is on the Upload CSV page. Help them understand data format and requirements.",
+        "synthetic": "The user is configuring synthetic data generation. Guide them on business type selection.",
+    }
+    page_context = page_hints.get(active_page, "")
+
+    system = f"""You are FinTwin AI, an expert Indian MSME financial advisor chatbot.
 Answer the user's question using ONLY the provided financial data and analysis.
 Be specific, cite actual numbers from the data, and give actionable advice.
 Keep answers concise (3-5 sentences max) unless the user asks for detail.
 If the question is about what-if scenarios, use the stress test data to extrapolate.
-Format important numbers and metrics clearly."""
+Format important numbers and metrics clearly.
+{page_context}"""
 
     prompt = f"""{context}
 

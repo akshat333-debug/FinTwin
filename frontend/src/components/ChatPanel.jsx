@@ -12,7 +12,7 @@ const SUGGESTED_QUESTIONS = [
     "How can I improve my health score?",
 ];
 
-export default function ChatPanel({ result }) {
+export default function ChatPanel({ result, activePage = 'dashboard' }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
@@ -46,7 +46,7 @@ export default function ChatPanel({ result }) {
                 schemes: result.schemes,
             } : {};
 
-            const res = await chatWithData(q, context);
+            const res = await chatWithData(q, context, activePage);
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: res.answer,
