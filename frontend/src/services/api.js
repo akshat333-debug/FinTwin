@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
 export async function analyzeCSV(file, nSimulations = 1000, noiseStd = 0.05) {
   const formData = new FormData();

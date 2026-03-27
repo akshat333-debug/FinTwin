@@ -10,7 +10,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from typing import Any
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ── Provider Detection ────────────────────────────────────────────────────────
 
@@ -56,17 +62,51 @@ def _call_openai(prompt: str, system: str = "You are an expert Indian MSME finan
 
 # ── Google Gemini ─────────────────────────────────────────────────────────────
 
-def _call_gemini(prompt: str, system: str = "You are an expert Indian MSME financial advisor.", temperature: float = 0.3) -> str:
-    """Call Google Gemini API."""
+# Model options (try in order):
+# - gemini-2.0-flash-lite: 15 RPM, 250K TPM, 500 RPD (preferred)
+# - gemini-2.5-flash: 5 RPM, 250K TPM, 20 RPD (fallback)
+# - gemini-flash-latest: NOT rate limited (currently working)
+GEMINI_MODEL = "gemini-flash-latest"
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 4.0  # seconds (higher for rate limit protection)
+
+
+def _call_gemini_with_retry(prompt: str, system: str = "You are an expert Indian MSME financial advisor.", temperature: float = 0.3) -> str:
+    """Call Google Gemini API with rate limit handling and retry logic."""
     import google.generativeai as genai
+    from google.api_core import exceptions as google_exceptions
+
     genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
     model = genai.GenerativeModel(
-        "gemini-2.0-flash",
+        GEMINI_MODEL,
         system_instruction=system,
         generation_config={"temperature": temperature, "max_output_tokens": 2000},
     )
-    response = model.generate_content(prompt)
-    return response.text
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except google_exceptions.ResourceExhausted as e:
+            # Rate limit hit (429 error)
+            last_error = e
+            backoff = INITIAL_BACKOFF * (2 ** attempt)
+            print(f"[LLM] Rate limit hit, retrying in {backoff}s (attempt {attempt + 1}/{MAX_RETRIES})")
+            time.sleep(backoff)
+        except google_exceptions.GoogleAPIError as e:
+            # Other API errors - retry with backoff
+            last_error = e
+            backoff = INITIAL_BACKOFF * (2 ** attempt)
+            print(f"[LLM] API error: {e}, retrying in {backoff}s")
+            time.sleep(backoff)
+
+    raise RuntimeError(f"Gemini API failed after {MAX_RETRIES} retries: {last_error}")
+
+
+def _call_gemini(prompt: str, system: str = "You are an expert Indian MSME financial advisor.", temperature: float = 0.3) -> str:
+    """Call Google Gemini API."""
+    return _call_gemini_with_retry(prompt, system, temperature)
 
 
 # ── Unified Call ──────────────────────────────────────────────────────────────
